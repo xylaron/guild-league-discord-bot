@@ -21,8 +21,126 @@ const client = new Client({
   partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
-const teamA = [];
-const teamB = [];
+function generateGuid() {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0,
+      v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+class SignupSession {
+  constructor(title, deadline) {
+    this.id = generateGuid();
+    this.title = title;
+    this.deadline = deadline;
+    this.teamA = [];
+    this.teamB = [];
+  }
+
+  createEmbed() {
+    return new EmbedBuilder()
+      .setTitle(`${this.title} 公會聯賽`)
+      .setDescription(
+        `(投票截止時間: ${this.deadline.toFormat("MM/dd HH:mm")})`
+      )
+      .addFields(
+        {
+          name: `打手 (${this.teamA.length}/9)`,
+          value: this.teamA.join("\n") || "無",
+          inline: true,
+        },
+        {
+          name: "\u200B", // Zero-width space for padding
+          value: "\u200B", // Zero-width space for padding
+          inline: true,
+        },
+        {
+          name: `莎亦 (${this.teamB.length}/1)`,
+          value: this.teamB.join("\n") || "無",
+          inline: true,
+        }
+      );
+  }
+
+  createActionRow() {
+    return new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`team_a_${this.id}`)
+        .setLabel("加入打手")
+        .setStyle(ButtonStyle.Primary)
+        .setDisabled(this.teamA.length >= 9),
+      new ButtonBuilder()
+        .setCustomId(`team_b_${this.id}`)
+        .setLabel("加入莎亦")
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(this.teamB.length >= 1),
+      new ButtonBuilder()
+        .setCustomId(`clear_selection_${this.id}`)
+        .setLabel("清除選項")
+        .setStyle(ButtonStyle.Danger)
+    );
+  }
+
+  handleButtonInteraction(interaction) {
+    const userName = interaction.member.displayName;
+
+    if (interaction.customId === `team_a_${this.id}`) {
+      if (this.teamA.includes(userName)) {
+        return interaction.reply({
+          content: "你已經選擇了打手!",
+          ephemeral: true,
+        });
+      } else if (this.teamA.length >= 9) {
+        return interaction.reply({ content: "打手已滿!", ephemeral: true });
+      }
+
+      const indexB = this.teamB.indexOf(userName);
+      if (indexB !== -1) {
+        this.teamB.splice(indexB, 1);
+      }
+
+      this.teamA.push(userName);
+    } else if (interaction.customId === `team_b_${this.id}`) {
+      if (this.teamB.includes(userName)) {
+        return interaction.reply({
+          content: "你已經選擇了莎亦!",
+          ephemeral: true,
+        });
+      } else if (this.teamB.length >= 1) {
+        return interaction.reply({ content: "莎亦已滿!", ephemeral: true });
+      }
+
+      const indexA = this.teamA.indexOf(userName);
+      if (indexA !== -1) {
+        this.teamA.splice(indexA, 1);
+      }
+
+      this.teamB.push(userName);
+    } else if (interaction.customId === `clear_selection_${this.id}`) {
+      const indexA = this.teamA.indexOf(userName);
+      const indexB = this.teamB.indexOf(userName);
+
+      if (indexA !== -1) {
+        this.teamA.splice(indexA, 1);
+      } else if (indexB !== -1) {
+        this.teamB.splice(indexB, 1);
+      } else {
+        return interaction.reply({
+          content: "你沒有加入任何隊伍!",
+          ephemeral: true,
+        });
+      }
+    }
+
+    const embed = this.createEmbed();
+    const row = this.createActionRow();
+
+    return interaction.update({ embeds: [embed], components: [row] });
+  }
+}
+
+const sessions = new Map();
 
 client.once(Events.ClientReady, () => {
   console.log(`Logged in as ${client.user.tag}`);
@@ -49,9 +167,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const hours = parseInt(title.substring(0, 2), 10);
       const minutes = parseInt(title.substring(2, 4), 10);
 
-      if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+      // Validate the time range and minute format
+      if (
+        !(
+          ((hours >= 13 && hours <= 24) || // After 1 PM and before or at midnight
+            (hours >= 0 && hours <= 1)) && // Midnight to 1 AM the next day
+          (minutes === 0 || minutes === 30)
+        ) // Minutes are 00 or 30
+      ) {
         await interaction.reply({
-          content: "無效的時間! 時間應該要在 0000 到 2359 之間.",
+          content:
+            "無效的時間! 時間應該在 13:00 到 01:00 之間，且分鐘應該是 00 或 30.",
           ephemeral: true,
         });
         return;
@@ -59,69 +185,42 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       // Set the deadline in GMT+8
       const now = DateTime.now().setZone("Asia/Shanghai"); // GMT+8
-      const deadline = now.set({
+      let deadline = now.set({
         hour: hours,
         minute: minutes,
         second: 0,
         millisecond: 0,
       });
 
-      const embed = new EmbedBuilder()
-        .setTitle(`${title} 公會聯賽`)
-        .setDescription(`(投票截止時間: ${deadline.toFormat("HH:mm")})`)
-        .addFields(
-          {
-            name: `打手 (${teamA.length}/9)`,
-            value: teamA.join("\n") || "無",
-            inline: true,
-          },
-          {
-            name: "\u200B", // Zero-width space for padding
-            value: "\u200B", // Zero-width space for padding
-            inline: true,
-          },
-          {
-            name: `莎亦 (${teamB.length}/1)`,
-            value: teamB.join("\n") || "無",
-            inline: true,
-          }
-        );
+      // Adjust deadline if it is before the current time
+      if ((hours === 0 && hours === 1) || deadline < now) {
+        deadline = deadline.plus({ days: 1 });
+      }
 
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId("team_a")
-          .setLabel("加入打手")
-          .setStyle(ButtonStyle.Primary)
-          .setDisabled(teamA.length >= 9),
-        new ButtonBuilder()
-          .setCustomId("team_b")
-          .setLabel("加入莎亦")
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(teamB.length >= 1),
-        new ButtonBuilder()
-          .setCustomId("clear_selection")
-          .setLabel("清除選項")
-          .setStyle(ButtonStyle.Danger)
-      );
+      const session = new SignupSession(title, deadline);
+      sessions.set(session.id, session);
+
+      const embed = session.createEmbed();
+      const row = session.createActionRow();
 
       await interaction.reply({ embeds: [embed], components: [row] });
 
-      // Schedule the disabling of buttons
+      // Schedule the disabling of buttons and cleanup
       const delay = deadline.toMillis() - now.toMillis();
       setTimeout(async () => {
         const disabledRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setCustomId("team_a")
+            .setCustomId(`team_a_${session.id}`)
             .setLabel("加入打手")
             .setStyle(ButtonStyle.Primary)
             .setDisabled(true),
           new ButtonBuilder()
-            .setCustomId("team_b")
+            .setCustomId(`team_b_${session.id}`)
             .setLabel("加入莎亦")
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(true),
           new ButtonBuilder()
-            .setCustomId("clear_selection")
+            .setCustomId(`clear_selection_${session.id}`)
             .setLabel("清除選項")
             .setStyle(ButtonStyle.Danger)
             .setDisabled(true)
@@ -132,8 +231,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
           .setDescription(`投票已截止。`)
           .addFields(
             {
-              name: `打手 (${teamA.length}/9)`,
-              value: teamA.join("\n") || "無",
+              name: `打手 (${session.teamA.length}/9)`,
+              value: session.teamA.join("\n") || "無",
               inline: true,
             },
             {
@@ -142,8 +241,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
               inline: true,
             },
             {
-              name: `莎亦 (${teamB.length}/1)`,
-              value: teamB.join("\n") || "無",
+              name: `莎亦 (${session.teamB.length}/1)`,
+              value: session.teamB.join("\n") || "無",
               inline: true,
             }
           );
@@ -152,104 +251,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
           embeds: [updatedEmbed],
           components: [disabledRow],
         });
+
+        // Cleanup the session
+        sessions.delete(session.id);
       }, delay);
     }
   } else if (interaction.isButton()) {
-    const userId = interaction.user.id;
-    const userName = interaction.member.displayName;
+    const sessionId = interaction.customId.split("_").slice(2).join("_");
+    const session = sessions.get(sessionId);
 
-    if (interaction.customId === "team_a") {
-      if (teamA.includes(userName)) {
-        await interaction.reply({
-          content: "你已經在打手 中了!",
-          ephemeral: true,
-        });
-        return;
-      } else if (teamA.length >= 9) {
-        await interaction.reply({ content: "打手已滿!", ephemeral: true });
-        return;
-      }
-
-      const indexB = teamB.indexOf(userName);
-      if (indexB !== -1) {
-        teamB.splice(indexB, 1);
-      }
-
-      teamA.push(userName);
-    } else if (interaction.customId === "team_b") {
-      if (teamB.includes(userName)) {
-        await interaction.reply({
-          content: "你已經在莎亦 中了!",
-          ephemeral: true,
-        });
-        return;
-      } else if (teamB.length >= 1) {
-        await interaction.reply({ content: "莎亦已滿!", ephemeral: true });
-        return;
-      }
-
-      const indexA = teamA.indexOf(userName);
-      if (indexA !== -1) {
-        teamA.splice(indexA, 1);
-      }
-
-      teamB.push(userName);
-    } else if (interaction.customId === "clear_selection") {
-      const indexA = teamA.indexOf(userName);
-      const indexB = teamB.indexOf(userName);
-
-      if (indexA !== -1) {
-        teamA.splice(indexA, 1);
-      } else if (indexB !== -1) {
-        teamB.splice(indexB, 1);
-      } else {
-        await interaction.reply({
-          content: "你沒有加入任何隊伍!",
-          ephemeral: true,
-        });
-        return;
-      }
+    if (session) {
+      await session.handleButtonInteraction(interaction);
     }
-
-    const embed = new EmbedBuilder()
-      .setTitle(`${interaction.message.embeds[0].title}`)
-      .setDescription(interaction.message.embeds[0].description)
-      .addFields(
-        {
-          name: `打手 (${teamA.length}/9)`,
-          value: teamA.join("\n") || "無",
-          inline: true,
-        },
-        {
-          name: "\u200B",
-          value: "\u200B",
-          inline: true,
-        },
-        {
-          name: `莎亦 (${teamB.length}/1)`,
-          value: teamB.join("\n") || "無",
-          inline: true,
-        }
-      );
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("team_a")
-        .setLabel("加入打手")
-        .setStyle(ButtonStyle.Primary)
-        .setDisabled(teamA.length >= 9),
-      new ButtonBuilder()
-        .setCustomId("team_b")
-        .setLabel("加入莎亦")
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(teamB.length >= 1),
-      new ButtonBuilder()
-        .setCustomId("clear_selection")
-        .setLabel("清除選項")
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    await interaction.update({ embeds: [embed], components: [row] });
   }
 });
 
