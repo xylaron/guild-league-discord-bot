@@ -158,7 +158,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       // Validate the time format
       if (!/^\d{4}$/.test(title)) {
         await interaction.reply({
-          content: "無效的時間格式! 請使用 HHmm 格式，例如 21:30 就輸入 2130.",
+          content: "錯誤時間格式! 請使用 HHmm 格式，例如 21:30 就輸入 2130.",
           ephemeral: true,
         });
         return;
@@ -177,7 +177,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       ) {
         await interaction.reply({
           content:
-            "無效的時間! 時間應該在 13:00 到 01:00 之間，且分鐘應該是 00 或 30.",
+            "錯誤時間! 聯賽時間應該在 13:00 到 01:00 之間，且應該是 整點 或 30分.",
           ephemeral: true,
         });
         return;
