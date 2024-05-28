@@ -14,7 +14,7 @@ const commands = [
         name: "時間",
         type: 3, // STRING
         description: "聯賽時間 (HHmm) e.g. 2130",
-        required: true,
+        required: false,
       },
     ],
   },

@@ -39,6 +39,9 @@ class SignupSession {
   }
 
   createEmbed() {
+    const formatTeam = (team) =>
+      team.map((user) => user.displayName).join("\n") || "無";
+
     return new EmbedBuilder()
       .setTitle(`${this.title} 公會聯賽`)
       .setDescription(
@@ -48,7 +51,7 @@ class SignupSession {
       .addFields(
         {
           name: `打手 (${this.teamA.length}/9)`,
-          value: this.teamA.join("\n") || "無",
+          value: formatTeam(this.teamA),
           inline: true,
         },
         {
@@ -58,7 +61,7 @@ class SignupSession {
         },
         {
           name: `莎亦 (${this.teamB.length}/1)`,
-          value: this.teamB.join("\n") || "無",
+          value: formatTeam(this.teamB),
           inline: true,
         }
       );
@@ -84,10 +87,15 @@ class SignupSession {
   }
 
   handleButtonInteraction(interaction) {
+    const userId = interaction.member.id;
     const userName = interaction.member.displayName;
 
+    const user = { id: userId, displayName: userName };
+
+    const findUserIndex = (team) => team.findIndex((u) => u.id === userId);
+
     if (interaction.customId === `team_a_${this.id}`) {
-      if (this.teamA.includes(userName)) {
+      if (findUserIndex(this.teamA) !== -1) {
         return interaction.reply({
           content: "你已經選擇了打手!",
           ephemeral: true,
@@ -96,14 +104,14 @@ class SignupSession {
         return interaction.reply({ content: "打手已滿!", ephemeral: true });
       }
 
-      const indexB = this.teamB.indexOf(userName);
+      const indexB = findUserIndex(this.teamB);
       if (indexB !== -1) {
         this.teamB.splice(indexB, 1);
       }
 
-      this.teamA.push(userName);
+      this.teamA.push(user);
     } else if (interaction.customId === `team_b_${this.id}`) {
-      if (this.teamB.includes(userName)) {
+      if (findUserIndex(this.teamB) !== -1) {
         return interaction.reply({
           content: "你已經選擇了莎亦!",
           ephemeral: true,
@@ -112,15 +120,15 @@ class SignupSession {
         return interaction.reply({ content: "莎亦已滿!", ephemeral: true });
       }
 
-      const indexA = this.teamA.indexOf(userName);
+      const indexA = findUserIndex(this.teamA);
       if (indexA !== -1) {
         this.teamA.splice(indexA, 1);
       }
 
-      this.teamB.push(userName);
+      this.teamB.push(user);
     } else if (interaction.customId === `clear_selection_${this.id}`) {
-      const indexA = this.teamA.indexOf(userName);
-      const indexB = this.teamB.indexOf(userName);
+      const indexA = findUserIndex(this.teamA);
+      const indexB = findUserIndex(this.teamB);
 
       if (indexA !== -1) {
         this.teamA.splice(indexA, 1);
@@ -154,7 +162,21 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const { commandName, options } = interaction;
 
     if (commandName === "聯賽") {
-      const title = options.getString("時間");
+      let title = options.getString("時間");
+
+      // If the title is empty, calculate the next 00 or 30 minute time
+      if (!title) {
+        const now = DateTime.now().setZone("Asia/Shanghai"); // GMT+8
+        let nextTime = now
+          .plus({ minutes: 30 - (now.minute % 30) })
+          .set({ second: 0, millisecond: 0 });
+
+        if (nextTime.hour < 13 && nextTime.hour > 1) {
+          nextTime = nextTime.set({ hour: 13, minute: 0 });
+        }
+
+        title = nextTime.toFormat("HHmm");
+      }
 
       // Validate the time format
       if (!/^\d{4}$/.test(title)) {
@@ -234,7 +256,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
           .addFields(
             {
               name: `打手 (${session.teamA.length}/9)`,
-              value: session.teamA.join("\n") || "無",
+              value:
+                session.teamA.map((user) => user.displayName).join("\n") ||
+                "無",
               inline: true,
             },
             {
@@ -244,7 +268,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
             },
             {
               name: `莎亦 (${session.teamB.length}/1)`,
-              value: session.teamB.join("\n") || "無",
+              value:
+                session.teamB.map((user) => user.displayName).join("\n") ||
+                "無",
               inline: true,
             }
           );
