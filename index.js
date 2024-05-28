@@ -44,6 +44,7 @@ class SignupSession {
       .setDescription(
         `(投票截止時間: ${this.deadline.toFormat("MM/dd HH:mm")})`
       )
+      .setColor("#ff10f0")
       .addFields(
         {
           name: `打手 (${this.teamA.length}/9)`,
@@ -229,6 +230,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const updatedEmbed = new EmbedBuilder()
           .setTitle(`${title} 公會聯賽`)
           .setDescription(`投票已截止。`)
+          .setColor("#ff10f0")
           .addFields(
             {
               name: `打手 (${session.teamA.length}/9)`,
