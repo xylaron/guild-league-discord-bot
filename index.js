@@ -34,6 +34,7 @@ class SignupSession {
     this.id = generateGuid();
     this.title = title;
     this.deadline = deadline;
+    this.refreshInterval = null;
     this.teamA = [];
     this.teamB = [];
   }
@@ -162,6 +163,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const { commandName, options } = interaction;
 
     if (commandName === "聯賽") {
+      /*  ====== SERVER LOGS ====== */
+      console.log(
+        `\n[Command Executed /聯賽${
+          options.getString("時間") ? " " + options.getString("時間") : ""
+        }]\nServer: ${interaction.guild.name}\nUser: ${
+          interaction.user.globalName
+        }`
+      );
+      /*  ========================= */
+
       let title = options.getString("時間");
 
       // If the title is empty, calculate the next 00 or 30 minute time
@@ -227,6 +238,37 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const row = session.createActionRow();
 
       await interaction.reply({ embeds: [embed], components: [row] });
+      /*  ====== SERVER LOGS ====== */
+      console.log(
+        `\n[Session Created]\nServer: ${interaction.guild.name}\nUser: ${interaction.user.globalName}\nSession: ${session.title} 公會聯賽`
+      );
+      /*  ========================= */
+
+      // Schedule the refresh of the message every 10 mins
+      const refreshInterval = setInterval(async () => {
+        const newEmbed = session.createEmbed();
+        const newRow = session.createActionRow();
+
+        try {
+          await interaction.editReply({
+            embeds: [newEmbed],
+            components: [newRow],
+          });
+        } catch (error) {
+          /*  ====== SERVER LOGS ====== */
+          console.error(
+            `\n[Error]\nFunction: Session Refresh\nServer: ${interaction.guild.name}\nUser: ${interaction.user.globalName}\nSession: ${session.title} 公會聯賽\nError: ${error}`
+          );
+          /*  ========================= */
+        }
+        /*  ====== SERVER LOGS ====== */
+        console.log(
+          `\n[Session Refreshed]\nServer: ${interaction.guild.name}\nUser: ${interaction.user.globalName}\nSession: ${session.title} 公會聯賽`
+        );
+        /*  ========================= */
+      }, 600000);
+
+      session.refreshInterval = refreshInterval;
 
       // Schedule the disabling of buttons and cleanup
       const delay = deadline.toMillis() - now.toMillis();
@@ -275,13 +317,27 @@ client.on(Events.InteractionCreate, async (interaction) => {
             }
           );
 
-        await interaction.editReply({
-          embeds: [updatedEmbed],
-          components: [disabledRow],
-        });
+        try {
+          await interaction.editReply({
+            embeds: [updatedEmbed],
+            components: [disabledRow],
+          });
+        } catch (error) {
+          /*  ====== SERVER LOGS ====== */
+          console.error(
+            `\n[Error]\nFunction: Session Cleanup\nServer: ${interaction.guild.name}\nUser: ${interaction.user.globalName}\nSession: ${session.title} 公會聯賽\nError: ${error}`
+          );
+          /*  ========================= */
+        }
 
         // Cleanup the session
+        clearInterval(refreshInterval);
         sessions.delete(session.id);
+        /*  ====== SERVER LOGS ====== */
+        console.log(
+          `\n[Session]\nServer: ${interaction.guild.name}\nUser: ${interaction.user.globalName}\nSession: ${session.title} 公會聯賽`
+        );
+        /*  ========================= */
       }, delay);
     }
   } else if (interaction.isButton()) {
