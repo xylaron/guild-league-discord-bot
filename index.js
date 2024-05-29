@@ -35,6 +35,7 @@ class SignupSession {
     this.title = title;
     this.deadline = deadline;
     this.refreshInterval = null;
+    this.message = null;
     this.teamA = [];
     this.teamB = [];
   }
@@ -146,7 +147,9 @@ class SignupSession {
     const embed = this.createEmbed();
     const row = this.createActionRow();
 
-    return interaction.update({ embeds: [embed], components: [row] });
+    this.message.edit({ embeds: [embed], components: [row] });
+    interaction.deferUpdate();
+    return;
   }
 }
 
@@ -237,7 +240,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const embed = session.createEmbed();
       const row = session.createActionRow();
 
-      await interaction.reply({ embeds: [embed], components: [row] });
+      const message = await interaction.reply({
+        allowedMentions: { roles: ["1231608330913579058"] },
+        content: "<@&1231608330913579058>",
+        embeds: [embed],
+        components: [row],
+        fetchReply: true,
+      });
+      session.message = message;
+
       /*  ====== SERVER LOGS ====== */
       console.log(
         `\n[Session Created]\nServer: ${interaction.guild.name}\nUser: ${interaction.user.globalName}\nSession: ${session.title} 公會聯賽`
@@ -250,7 +261,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const newRow = session.createActionRow();
 
         try {
-          await interaction.editReply({
+          await message.edit({
             embeds: [newEmbed],
             components: [newRow],
           });
@@ -318,7 +329,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           );
 
         try {
-          await interaction.editReply({
+          await message.edit({
             embeds: [updatedEmbed],
             components: [disabledRow],
           });
