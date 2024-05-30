@@ -38,6 +38,7 @@ class SignupSession {
     this.message = null;
     this.teamA = [];
     this.teamB = [];
+    this.teamC = [];
   }
 
   createEmbed() {
@@ -58,12 +59,20 @@ class SignupSession {
         },
         {
           name: "\u200B", // Zero-width space for padding
-          value: "\u200B", // Zero-width space for padding
           inline: true,
         },
         {
           name: `莎亦 (${this.teamB.length}/1)`,
           value: formatTeam(this.teamB),
+          inline: true,
+        },
+        {
+          name: "\u200B", // Zero-width space for padding
+          inline: true,
+        },
+        {
+          name: `後補 (${this.teamC.length}/3)`,
+          value: formatTeam(this.teamC),
           inline: true,
         }
       );
@@ -79,8 +88,13 @@ class SignupSession {
       new ButtonBuilder()
         .setCustomId(`team_b_${this.id}`)
         .setLabel("加入莎亦")
-        .setStyle(ButtonStyle.Secondary)
+        .setStyle(ButtonStyle.Success)
         .setDisabled(this.teamB.length >= 1),
+      new ButtonBuilder()
+        .setCustomId(`team_c_${this.id}`)
+        .setLabel("加入後補")
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(this.teamC.length >= 3),
       new ButtonBuilder()
         .setCustomId(`clear_selection_${this.id}`)
         .setLabel("清除選項")
@@ -110,6 +124,10 @@ class SignupSession {
       if (indexB !== -1) {
         this.teamB.splice(indexB, 1);
       }
+      const indexC = findUserIndex(this.teamC);
+      if (indexC !== -1) {
+        this.teamC.splice(indexC, 1);
+      }
 
       this.teamA.push(user);
     } else if (interaction.customId === `team_b_${this.id}`) {
@@ -126,16 +144,43 @@ class SignupSession {
       if (indexA !== -1) {
         this.teamA.splice(indexA, 1);
       }
+      const indexC = findUserIndex(this.teamC);
+      if (indexC !== -1) {
+        this.teamC.splice(indexC, 1);
+      }
 
       this.teamB.push(user);
+    } else if (interaction.customId === `team_c_${this.id}`) {
+      if (findUserIndex(this.teamC) !== -1) {
+        return interaction.reply({
+          content: "你已經選擇了後補!",
+          ephemeral: true,
+        });
+      } else if (this.teamC.length >= 1) {
+        return interaction.reply({ content: "後補已滿!", ephemeral: true });
+      }
+
+      const indexA = findUserIndex(this.teamA);
+      if (indexA !== -1) {
+        this.teamA.splice(indexA, 1);
+      }
+      const indexB = findUserIndex(this.teamB);
+      if (indexB !== -1) {
+        this.teamB.splice(indexB, 1);
+      }
+
+      this.teamC.push(user);
     } else if (interaction.customId === `clear_selection_${this.id}`) {
       const indexA = findUserIndex(this.teamA);
       const indexB = findUserIndex(this.teamB);
+      const indexC = findUserIndex(this.teamC);
 
       if (indexA !== -1) {
         this.teamA.splice(indexA, 1);
       } else if (indexB !== -1) {
         this.teamB.splice(indexB, 1);
+      } else if (indexC !== -1) {
+        this.teamC.splice(indexC, 1);
       } else {
         return interaction.reply({
           content: "你沒有加入任何隊伍!",
@@ -293,6 +338,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
           new ButtonBuilder()
             .setCustomId(`team_b_${session.id}`)
             .setLabel("加入莎亦")
+            .setStyle(ButtonStyle.Success)
+            .setDisabled(true),
+          new ButtonBuilder()
+            .setCustomId(`team_c_${session.id}`)
+            .setLabel("加入後補")
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(true),
           new ButtonBuilder()
@@ -323,6 +373,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
               name: `莎亦 (${session.teamB.length}/1)`,
               value:
                 session.teamB.map((user) => user.displayName).join("\n") ||
+                "無",
+              inline: true,
+            },
+            {
+              name: "\u200B\u200B", // Zero-width space for padding
+              value: "\u200B\u200B", // Zero-width space for padding
+              inline: true,
+            },
+            {
+              name: `後補 (${session.teamC.length}/3)`,
+              value:
+                session.teamC.map((user) => user.displayName).join("\n") ||
                 "無",
               inline: true,
             }
