@@ -158,7 +158,7 @@ class SignupSession {
           content: "你已經選擇了後補!",
           ephemeral: true,
         });
-      } else if (this.teamC.length >= 1) {
+      } else if (this.teamC.length >= 3) {
         return interaction.reply({ content: "後補已滿!", ephemeral: true });
       }
 
