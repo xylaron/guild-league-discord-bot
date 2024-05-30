@@ -55,25 +55,27 @@ class SignupSession {
         {
           name: `打手 (${this.teamA.length}/9)`,
           value: formatTeam(this.teamA),
-          inline: true,
+          inline: false,
         },
         {
-          name: "\u200B", // Zero-width space for padding
-          inline: true,
+          name: "\n",
+          value: "\n",
+          inline: false,
         },
         {
           name: `莎亦 (${this.teamB.length}/1)`,
           value: formatTeam(this.teamB),
-          inline: true,
+          inline: false,
         },
         {
-          name: "\u200B", // Zero-width space for padding
-          inline: true,
+          name: "\n",
+          value: "\n",
+          inline: false,
         },
         {
           name: `後補 (${this.teamC.length}/3)`,
           value: formatTeam(this.teamC),
-          inline: true,
+          inline: false,
         }
       );
   }
@@ -362,31 +364,31 @@ client.on(Events.InteractionCreate, async (interaction) => {
               value:
                 session.teamA.map((user) => user.displayName).join("\n") ||
                 "無",
-              inline: true,
+              inline: false,
             },
             {
-              name: "\u200B\u200B", // Zero-width space for padding
-              value: "\u200B\u200B", // Zero-width space for padding
-              inline: true,
+              name: "\n",
+              value: "\n",
+              inline: false,
             },
             {
               name: `莎亦 (${session.teamB.length}/1)`,
               value:
                 session.teamB.map((user) => user.displayName).join("\n") ||
                 "無",
-              inline: true,
+              inline: false,
             },
             {
-              name: "\u200B\u200B", // Zero-width space for padding
-              value: "\u200B\u200B", // Zero-width space for padding
-              inline: true,
+              name: "\n",
+              value: "\n",
+              inline: false,
             },
             {
               name: `後補 (${session.teamC.length}/3)`,
               value:
                 session.teamC.map((user) => user.displayName).join("\n") ||
                 "無",
-              inline: true,
+              inline: false,
             }
           );
 
