@@ -104,7 +104,7 @@ class SignupSession {
     );
   }
 
-  handleButtonInteraction(interaction) {
+  async handleButtonInteraction(interaction) {
     const userId = interaction.member.id;
     const userName = interaction.member.displayName;
 
@@ -112,91 +112,104 @@ class SignupSession {
 
     const findUserIndex = (team) => team.findIndex((u) => u.id === userId);
 
-    if (interaction.customId === `team_a_${this.id}`) {
-      if (findUserIndex(this.teamA) !== -1) {
-        return interaction.reply({
-          content: "你已經選擇了打手!",
-          ephemeral: true,
-        });
-      } else if (this.teamA.length >= 9) {
-        return interaction.reply({ content: "打手已滿!", ephemeral: true });
+    try {
+      if (interaction.customId === `team_a_${this.id}`) {
+        if (findUserIndex(this.teamA) !== -1) {
+          return interaction.reply({
+            content: "你已經選擇了打手!",
+            ephemeral: true,
+          });
+        } else if (this.teamA.length >= 9) {
+          return interaction.reply({ content: "打手已滿!", ephemeral: true });
+        }
+
+        const indexB = findUserIndex(this.teamB);
+        if (indexB !== -1) {
+          this.teamB.splice(indexB, 1);
+        }
+        const indexC = findUserIndex(this.teamC);
+        if (indexC !== -1) {
+          this.teamC.splice(indexC, 1);
+        }
+
+        this.teamA.push(user);
+      } else if (interaction.customId === `team_b_${this.id}`) {
+        if (findUserIndex(this.teamB) !== -1) {
+          return interaction.reply({
+            content: "你已經選擇了莎亦!",
+            ephemeral: true,
+          });
+        } else if (this.teamB.length >= 1) {
+          return interaction.reply({ content: "莎亦已滿!", ephemeral: true });
+        }
+
+        const indexA = findUserIndex(this.teamA);
+        if (indexA !== -1) {
+          this.teamA.splice(indexA, 1);
+        }
+        const indexC = findUserIndex(this.teamC);
+        if (indexC !== -1) {
+          this.teamC.splice(indexC, 1);
+        }
+
+        this.teamB.push(user);
+      } else if (interaction.customId === `team_c_${this.id}`) {
+        if (findUserIndex(this.teamC) !== -1) {
+          return interaction.reply({
+            content: "你已經選擇了後補!",
+            ephemeral: true,
+          });
+        } else if (this.teamC.length >= 3) {
+          return interaction.reply({ content: "後補已滿!", ephemeral: true });
+        }
+
+        const indexA = findUserIndex(this.teamA);
+        if (indexA !== -1) {
+          this.teamA.splice(indexA, 1);
+        }
+        const indexB = findUserIndex(this.teamB);
+        if (indexB !== -1) {
+          this.teamB.splice(indexB, 1);
+        }
+
+        this.teamC.push(user);
+      } else if (interaction.customId === `clear_selection_${this.id}`) {
+        const indexA = findUserIndex(this.teamA);
+        const indexB = findUserIndex(this.teamB);
+        const indexC = findUserIndex(this.teamC);
+
+        if (indexA !== -1) {
+          this.teamA.splice(indexA, 1);
+        } else if (indexB !== -1) {
+          this.teamB.splice(indexB, 1);
+        } else if (indexC !== -1) {
+          this.teamC.splice(indexC, 1);
+        } else {
+          return interaction.reply({
+            content: "你沒有加入任何隊伍!",
+            ephemeral: true,
+          });
+        }
       }
 
-      const indexB = findUserIndex(this.teamB);
-      if (indexB !== -1) {
-        this.teamB.splice(indexB, 1);
-      }
-      const indexC = findUserIndex(this.teamC);
-      if (indexC !== -1) {
-        this.teamC.splice(indexC, 1);
-      }
+      const embed = this.createEmbed();
+      const row = this.createActionRow();
 
-      this.teamA.push(user);
-    } else if (interaction.customId === `team_b_${this.id}`) {
-      if (findUserIndex(this.teamB) !== -1) {
-        return interaction.reply({
-          content: "你已經選擇了莎亦!",
-          ephemeral: true,
-        });
-      } else if (this.teamB.length >= 1) {
-        return interaction.reply({ content: "莎亦已滿!", ephemeral: true });
-      }
-
-      const indexA = findUserIndex(this.teamA);
-      if (indexA !== -1) {
-        this.teamA.splice(indexA, 1);
-      }
-      const indexC = findUserIndex(this.teamC);
-      if (indexC !== -1) {
-        this.teamC.splice(indexC, 1);
-      }
-
-      this.teamB.push(user);
-    } else if (interaction.customId === `team_c_${this.id}`) {
-      if (findUserIndex(this.teamC) !== -1) {
-        return interaction.reply({
-          content: "你已經選擇了後補!",
-          ephemeral: true,
-        });
-      } else if (this.teamC.length >= 3) {
-        return interaction.reply({ content: "後補已滿!", ephemeral: true });
-      }
-
-      const indexA = findUserIndex(this.teamA);
-      if (indexA !== -1) {
-        this.teamA.splice(indexA, 1);
-      }
-      const indexB = findUserIndex(this.teamB);
-      if (indexB !== -1) {
-        this.teamB.splice(indexB, 1);
-      }
-
-      this.teamC.push(user);
-    } else if (interaction.customId === `clear_selection_${this.id}`) {
-      const indexA = findUserIndex(this.teamA);
-      const indexB = findUserIndex(this.teamB);
-      const indexC = findUserIndex(this.teamC);
-
-      if (indexA !== -1) {
-        this.teamA.splice(indexA, 1);
-      } else if (indexB !== -1) {
-        this.teamB.splice(indexB, 1);
-      } else if (indexC !== -1) {
-        this.teamC.splice(indexC, 1);
-      } else {
-        return interaction.reply({
-          content: "你沒有加入任何隊伍!",
+      await this.message.edit({ embeds: [embed], components: [row] });
+      await interaction.deferUpdate();
+    } catch (error) {
+      /*  ====== SERVER LOGS ====== */
+      console.error(
+        `\n[Error]\nFunction: Button Interaction\nServer: ${interaction.guild.name}\nUser: ${interaction.user.globalName}\nSession: ${this.title} 公會聯賽\nError: ${error}`
+      );
+      /*  ========================= */
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: "發生錯誤，請稍後再試。",
           ephemeral: true,
         });
       }
     }
-
-    const embed = this.createEmbed();
-    const row = this.createActionRow();
-
-    this.message.edit({ embeds: [embed], components: [row] });
-    interaction.deferUpdate();
-    return;
   }
 }
 
