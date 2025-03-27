@@ -300,9 +300,29 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const embed = session.createEmbed();
       const row = session.createActionRow();
 
+      const teamType = options.getInteger("聯賽隊伍");
+      const role =
+        teamType === 1 ? "1354645336710447217" : "1231608330913579058";
+      const teamMsg =
+        teamType === 1
+          ? "## 1軍打聯賽咯 哈囉哈囉"
+          : teamType === 2
+          ? "## 2軍打聯賽咯 哈囉哈囉"
+          : "## 3軍打聯賽咯 哈囉哈囉";
+
+      // Validate the team type, must be 1, 2, or 3
+      if (![1, 2, 3].includes(teamType)) {
+        await interaction.reply({
+          content:
+            "錯誤聯賽隊伍! 請使用 1, 2, 或 3 來選擇隊伍. 公會守護者(1軍): 1 - 第一守護者(二軍): 2 - 第二守護者(三軍): 3",
+          ephemeral: true,
+        });
+        return;
+      }
+
       const message = await interaction.reply({
-        allowedMentions: { roles: ["1231608330913579058"] },
-        content: "<@&1231608330913579058>",
+        allowedMentions: { roles: [role] },
+        content: `<@&${role}> \n${teamMsg}`,
         embeds: [embed],
         components: [row],
         fetchReply: true,

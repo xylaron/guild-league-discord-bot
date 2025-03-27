@@ -11,6 +11,13 @@ const commands = [
     description: "創建一個聯賽報名",
     options: [
       {
+        name: "聯賽隊伍",
+        type: 4, // INTEGER
+        description:
+          "公會守護者(1軍): 1 - 第一守護者(二軍): 2 - 第二守護者(三軍): 3",
+        required: true,
+      },
+      {
         name: "時間",
         type: 3, // STRING
         description: "聯賽時間 (HHmm) e.g. 2130",
